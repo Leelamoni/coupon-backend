@@ -8,7 +8,7 @@ app.use(cors());
 app.use(express.json());
 
 /* ================================
-   MongoDB Connection
+   MongoDB
 ================================ */
 mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log("MongoDB Connected"))
@@ -18,7 +18,7 @@ mongoose.connect(process.env.MONGO_URI)
   });
 
 /* ================================
-   Models (No schema lock – SEO safe)
+   Models (no schema lock)
 ================================ */
 const Brand =
   mongoose.models.Brand ||
@@ -37,15 +37,15 @@ const Coupon =
   );
 
 /* ================================
-   Health Check
+   Health check
 ================================ */
 app.get("/", (req, res) => {
   res.send("Coupon SEO API Running 🚀");
 });
 
 /* ================================
-   ALL Brands (for Sitemap + SEO)
-   /api/brands
+   ALL BRANDS  (SITEMAP)
+   GET /api/brands
 ================================ */
 app.get("/api/brands", async (req, res) => {
   try {
@@ -57,8 +57,8 @@ app.get("/api/brands", async (req, res) => {
 });
 
 /* ================================
-   Single Brand Page
-   /api/brands/nike
+   SINGLE BRAND
+   GET /api/brands/nike
 ================================ */
 app.get("/api/brands/:slug", async (req, res) => {
   try {
@@ -67,9 +67,7 @@ app.get("/api/brands/:slug", async (req, res) => {
     const brand = await Brand.findOne({ slug });
     const coupons = await Coupon.find({ brandSlug: slug });
 
-    if (!brand) {
-      return res.status(404).json({ error: "Brand not found" });
-    }
+    if (!brand) return res.status(404).json({ error: "Brand not found" });
 
     res.json({ brand, coupons });
   } catch (err) {
@@ -78,8 +76,7 @@ app.get("/api/brands/:slug", async (req, res) => {
 });
 
 /* ================================
-   Keyword Pages
-   /api/keywords/nike-shoes
+   KEYWORDS
 ================================ */
 app.get("/api/keywords/:keyword", async (req, res) => {
   try {
@@ -91,7 +88,7 @@ app.get("/api/keywords/:keyword", async (req, res) => {
 
     res.json({
       title: `${keyword} Coupons & Promo Codes`,
-      description: `Find verified ${keyword} deals and discount codes`,
+      description: `Find verified ${keyword} deals`,
       heading: `${keyword} Coupons`,
       coupons
     });
@@ -101,27 +98,26 @@ app.get("/api/keywords/:keyword", async (req, res) => {
 });
 
 /* ================================
-   Affiliate Redirect
-   /out/12345
+   Affiliate redirect
 ================================ */
 app.get("/out/:id", async (req, res) => {
   try {
     const coupon = await Coupon.findById(req.params.id);
     if (!coupon) return res.sendStatus(404);
-
     res.redirect(coupon.affiliateUrl);
-  } catch (err) {
+  } catch {
     res.sendStatus(500);
   }
 });
 
 /* ================================
-   Railway Port
+   Railway port
 ================================ */
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log("Backend running on port", PORT);
 });
+
 
 
 
