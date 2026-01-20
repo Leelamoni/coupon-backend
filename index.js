@@ -2,6 +2,8 @@ require("dotenv").config();
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
+const pool = require("./db");
+
 
 const app = express();
 app.use(cors());
@@ -16,6 +18,23 @@ mongoose.connect(process.env.MONGO_URI)
     console.error("Mongo Error:", err);
     process.exit(1);
   });
+
+
+  app.get("/api/test-db", async (req, res) => {
+  try {
+    const result = await pool.query("SELECT NOW()");
+    res.json({
+      status: "Database connected ✅",
+      time: result.rows[0]
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: "Database NOT connected ❌",
+      error: error.message
+    });
+  }
+});
+
 
 /* ================================
    Models (no schema lock)
