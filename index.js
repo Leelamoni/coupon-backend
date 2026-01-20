@@ -118,6 +118,16 @@ app.listen(PORT, () => {
   console.log("Backend running on port", PORT);
 });
 
+app.get("/api/test-db", async (req, res) => {
+  try {
+    await mongoose.connection.db.admin().ping();
+    res.json({ message: "MongoDB is connected ✅" });
+  } catch (error) {
+    res.status(500).json({ error: "MongoDB NOT connected ❌", details: error.message });
+  }
+});
+
+
 
 
 
