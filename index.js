@@ -1,59 +1,11 @@
 require("dotenv").config();
 const express = require("express");
-const mongoose = require("mongoose");
 const cors = require("cors");
 const pool = require("./db");
-
 
 const app = express();
 app.use(cors());
 app.use(express.json());
-
-/* ================================
-   MongoDB
-================================ */
-mongoose.connect(process.env.MONGO_URI)
-  .then(() => console.log("MongoDB Connected"))
-  .catch(err => {
-    console.error("Mongo Error:", err);
-    process.exit(1);
-  });
-
-
-  app.get("/api/test-db", async (req, res) => {
-  try {
-    const result = await pool.query("SELECT NOW()");
-    res.json({
-      status: "Database connected ✅",
-      time: result.rows[0]
-    });
-  } catch (error) {
-    res.status(500).json({
-      status: "Database NOT connected ❌",
-      error: error.message
-    });
-  }
-});
-
-
-/* ================================
-   Models (no schema lock)
-================================ */
-const Brand =
-  mongoose.models.Brand ||
-  mongoose.model(
-    "Brand",
-    new mongoose.Schema({}, { strict: false }),
-    "brands"
-  );
-
-const Coupon =
-  mongoose.models.Coupon ||
-  mongoose.model(
-    "Coupon",
-    new mongoose.Schema({}, { strict: false }),
-    "coupons"
-  );
 
 /* ================================
    Health check
@@ -63,88 +15,116 @@ app.get("/", (req, res) => {
 });
 
 /* ================================
-   ALL BRANDS  (SITEMAP)
-   GET /api/brands
+   Test Supabase Connection
+================================ */
+app.get("/api/test-db", async (req, res) => {
+  try {
+    const result = await pool.query("SELECT NOW()");
+    res.json({
+      status: "Supabase Connected ✅",
+      time: result.rows[0]
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: "Supabase NOT connected ❌",
+      error: error.message
+    });
+  }
+});
+
+/* ================================
+   GET ALL BRANDS
 ================================ */
 app.get("/api/brands", async (req, res) => {
   try {
-    const brands = await Brand.find({}, { slug: 1, brandName: 1, _id: 0 });
-    res.json(brands);
+    const result = await pool.query("SELECT * FROM brands");
+    res.json(result.rows);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
 /* ================================
-   SINGLE BRAND
-   GET /api/brands/nike
+   GET SINGLE BRAND
 ================================ */
 app.get("/api/brands/:slug", async (req, res) => {
   try {
     const slug = req.params.slug;
 
-    const brand = await Brand.findOne({ slug });
-    const coupons = await Coupon.find({ brandSlug: slug });
+    const brandResult = await pool.query(
+      "SELECT * FROM brands WHERE slug = $1",
+      [slug]
+    );
 
-    if (!brand) return res.status(404).json({ error: "Brand not found" });
+    if (brandResult.rows.length === 0) {
+      return res.status(404).json({ error: "Brand not found" });
+    }
 
-    res.json({ brand, coupons });
+    const couponsResult = await pool.query(
+      "SELECT * FROM coupons WHERE brand_slug = $1",
+      [slug]
+    );
+
+    res.json({
+      brand: brandResult.rows[0],
+      coupons: couponsResult.rows
+    });
+
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
 /* ================================
-   KEYWORDS
+   KEYWORDS SEARCH
 ================================ */
 app.get("/api/keywords/:keyword", async (req, res) => {
   try {
     const keyword = req.params.keyword.replace(/-/g, " ");
 
-    const coupons = await Coupon.find({
-      title: { $regex: keyword, $options: "i" }
-    });
+    const result = await pool.query(
+      "SELECT * FROM coupons WHERE title ILIKE $1",
+      [`%${keyword}%`]
+    );
 
     res.json({
       title: `${keyword} Coupons & Promo Codes`,
       description: `Find verified ${keyword} deals`,
       heading: `${keyword} Coupons`,
-      coupons
+      coupons: result.rows
     });
+
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
 /* ================================
-   Affiliate redirect
+   Affiliate Redirect
 ================================ */
 app.get("/out/:id", async (req, res) => {
   try {
-    const coupon = await Coupon.findById(req.params.id);
-    if (!coupon) return res.sendStatus(404);
-    res.redirect(coupon.affiliateUrl);
+    const result = await pool.query(
+      "SELECT affiliate_url FROM coupons WHERE id = $1",
+      [req.params.id]
+    );
+
+    if (result.rows.length === 0) return res.sendStatus(404);
+
+    res.redirect(result.rows[0].affiliate_url);
   } catch {
     res.sendStatus(500);
   }
 });
 
 /* ================================
-   Railway port
+   Start Server
 ================================ */
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log("Backend running on port", PORT);
 });
 
-app.get("/api/test-db", async (req, res) => {
-  try {
-    await mongoose.connection.db.admin().ping();
-    res.json({ message: "MongoDB is connected ✅" });
-  } catch (error) {
-    res.status(500).json({ error: "MongoDB NOT connected ❌", details: error.message });
-  }
-});
 
 
 
