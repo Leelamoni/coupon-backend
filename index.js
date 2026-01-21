@@ -1,56 +1,18 @@
-const mongoose = require("mongoose");
+require("dotenv").config();
+const express = require("express");
+const cors = require("cors");
 
-/* ================================
-   MongoDB Connection
-================================ */
-async function connectMongo() {
-  if (mongoose.connection.readyState === 1) return;
+const app = express();
+app.use(cors());
+app.use(express.json());
 
-  await mongoose.connect(process.env.MONGO_URI);
-  console.log("MongoDB Connected ✅");
-}
+app.get("/", (req, res) => {
+  res.send("Backend is running on Render ✅");
+});
 
-/* ================================
-   Models
-================================ */
-const Brand =
-  mongoose.models.Brand ||
-  mongoose.model(
-    "Brand",
-    new mongoose.Schema({}, { strict: false }),
-    "brands"
-  );
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => {
+  console.log("Server running on port", PORT);
+});
 
-const Coupon =
-  mongoose.models.Coupon ||
-  mongoose.model(
-    "Coupon",
-    new mongoose.Schema({}, { strict: false }),
-    "coupons"
-  );
 
-/* ================================
-   Services
-================================ */
-async function getAllBrands() {
-  return Brand.find({}, { slug: 1, brandName: 1, _id: 0 });
-}
-
-async function getBrandWithCoupons(slug) {
-  const brand = await Brand.findOne({ slug });
-  const coupons = await Coupon.find({ brandSlug: slug });
-  return { brand, coupons };
-}
-
-async function getCouponsByKeyword(keyword) {
-  return Coupon.find({
-    title: { $regex: keyword, $options: "i" }
-  });
-}
-
-module.exports = {
-  connectMongo,
-  getAllBrands,
-  getBrandWithCoupons,
-  getCouponsByKeyword
-};
